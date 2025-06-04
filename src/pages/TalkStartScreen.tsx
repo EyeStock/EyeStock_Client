@@ -1,12 +1,16 @@
 import React, {useEffect} from 'react';
 import {ImageSourcePropType, TouchableWithoutFeedback} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import styled from 'styled-components/native';
 import Tts from 'react-native-tts';
 import TtsArea from '../components/TtsArea';
+import {RootStackParamList} from '../navigation/RootStackParamList';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function TalkStartScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
   useEffect(() => {
     Tts.setDefaultLanguage('ko-KR');
@@ -16,8 +20,13 @@ export default function TalkStartScreen() {
     );
   }, []);
 
+  const handlePress = () => {
+    Tts.stop();
+    navigation.navigate('SpeechToTextScreen');
+  };
+
   return (
-    <TouchableWithoutFeedback onPress={() => {}}>
+    <TouchableWithoutFeedback onPress={handlePress}>
       <Container>
         <CenterBox>
           <LogoBox>
@@ -56,12 +65,14 @@ const CenterBox = styled.View`
   align-items: center;
   margin-top: 80px;
 `;
+
 const LogoBox = styled.View`
   flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 8px;
 `;
+
 const Logo = styled.Image`
   width: 64px;
   height: 64px;
