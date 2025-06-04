@@ -20,6 +20,9 @@ export const useBiometricAuth = () => {
         promptMessage: '지문 인증',
         payload: challenge,
       });
+      if (!signature) {
+        throw new Error('지문 서명이 생성되지 않았습니다.');
+      }
 
       const {data: token} = await biometricLoginVerify(
         deviceId,
@@ -35,6 +38,7 @@ export const useBiometricAuth = () => {
 
         const {publicKey} = await rnBiometrics.createKeys();
         await biometricSignup(deviceId, publicKey);
+
         return await login();
       }
 
