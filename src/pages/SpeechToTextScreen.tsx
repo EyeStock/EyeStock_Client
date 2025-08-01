@@ -10,10 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {API_BASE_URL} from '@env';
 
 export default function SpeechToTextScreen() {
   const [recognizedText, setRecognizedText] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [apiResponse, setApiResponse] = useState('');
   const navigation = useNavigation();
 
   const requestMicrophonePermission = async () => {
@@ -75,14 +77,37 @@ export default function SpeechToTextScreen() {
       console.log('인식 시작');
       setIsListening(true);
     };
+
     Voice.onSpeechEnd = () => {
       console.log('인식 종료');
       setIsListening(false);
     };
-    Voice.onSpeechResults = e => {
-      console.log('인식 결과:', e.value);
-      setRecognizedText(e.value?.[0] || '');
+
+    Voice.onSpeechResults = async e => {
+      const text = e.value?.[0] || '';
+      console.log('인식 결과:', text);
+      setRecognizedText(text);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/chat/ask`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            question: text,
+          }),
+        });
+
+        const data = await response.json();
+        console.log('API 응답:', data);
+        setApiResponse(data.data.answer || '(응답 없음)');
+      } catch (error) {
+        console.error('API 호출 오류:', error);
+        setApiResponse('(오류 발생)');
+      }
     };
+
     Voice.onSpeechError = event => {
       console.error('[Speech Error]', event);
       setIsListening(false);
@@ -101,6 +126,12 @@ export default function SpeechToTextScreen() {
 
         <Bubble>
           <RecognizedText>{recognizedText || '...'}</RecognizedText>
+        </Bubble>
+
+        <Bubble>
+          <RecognizedText>
+            {apiResponse || '응답을 기다리는 중...'}
+          </RecognizedText>
         </Bubble>
 
         <Footer>다시 말하고 싶으면 탭</Footer>
@@ -135,13 +166,13 @@ const Bubble = styled.View`
   background-color: ${({theme}) => theme.color.primary};
   border-radius: 24px;
   padding: 24px;
-  margin-bottom: 48px;
+  margin-bottom: 24px;
   width: 80%;
 `;
 
 const RecognizedText = styled.Text`
   color: ${({theme}) => theme.color.white};
-  font-size: 22px;
+  font-size: 20px;
   text-align: center;
   font-family: ${({theme}) => theme.font.regular};
 `;
