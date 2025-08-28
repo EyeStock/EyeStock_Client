@@ -1,5 +1,8 @@
-import React, {useEffect, useState} from 'react';
-import Voice from '@react-native-voice/voice';
+import React, {useEffect, useRef, useState} from 'react';
+import Voice, {
+  SpeechResultsEvent,
+  SpeechErrorEvent,
+} from '@react-native-voice/voice';
 import styled from 'styled-components/native';
 import {
   Keyboard,
@@ -8,16 +11,19 @@ import {
   Platform,
   Linking,
   Alert,
+  AppState,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
 import {API_BASE_URL} from '@env';
 import TtsArea from '../components/TtsArea';
+import NewsComponent from '../components/NewsComponent';
 
 export default function SpeechToTextScreen() {
   const [recognizedText, setRecognizedText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [apiResponse, setApiResponse] = useState('');
-  const navigation = useNavigation();
+  const [loading, setLoading] = useState(false);
+
+  const inFlightRef = useRef(false);
 
   const requestMicrophonePermission = async () => {
     if (Platform.OS === 'android') {
@@ -50,10 +56,8 @@ export default function SpeechToTextScreen() {
           ],
         );
       }
-
       return false;
     }
-
     return true;
   };
 
@@ -63,13 +67,19 @@ export default function SpeechToTextScreen() {
       console.warn('마이크 권한 거부됨');
       return;
     }
-
     try {
-      console.log('[Voice] Start 직전');
+      await Voice.stop().catch(() => {});
+      await Voice.cancel().catch(() => {});
+      await new Promise(r => setTimeout(r, 120));
+      console.log('[Voice] Start...');
       await Voice.start('ko-KR');
       console.log('[Voice] Start 성공');
     } catch (e) {
-      console.error('[Voice.start 실패]', JSON.stringify(e, null, 2));
+      console.error('[Voice.start 실패]', e);
+      await new Promise(r => setTimeout(r, 250));
+      try {
+        await Voice.start('ko-KR');
+      } catch {}
     }
   };
 
@@ -78,48 +88,73 @@ export default function SpeechToTextScreen() {
       console.log('인식 시작');
       setIsListening(true);
     };
-
     Voice.onSpeechEnd = () => {
       console.log('인식 종료');
       setIsListening(false);
     };
-
-    Voice.onSpeechResults = async e => {
-      const text = e.value?.[0] || '';
-      console.log('인식 결과:', text);
-      setRecognizedText(text);
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/chat/ask`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            question: text,
-          }),
-        });
-
-        const data = await response.json();
-        console.log('API 응답:', data);
-        setApiResponse(data.data.answer || '(응답 없음)');
-      } catch (error) {
-        console.error('API 호출 오류:', error);
-        setApiResponse('(오류 발생)');
-      }
-    };
-
-    Voice.onSpeechError = event => {
-      console.error('[Speech Error]', event);
-      setIsListening(false);
-    };
+    Voice.onSpeechResults = onSpeechResults;
+    Voice.onSpeechError = onSpeechError;
 
     startListening();
 
+    const sub = AppState.addEventListener('change', s => {
+      if (s === 'active') startListening();
+      else Voice.stop().catch(() => {});
+    });
+
     return () => {
+      sub.remove();
+      Voice.stop().catch(() => {});
       Voice.destroy().then(Voice.removeAllListeners);
     };
   }, []);
+
+  const onSpeechResults = async (e: SpeechResultsEvent) => {
+    const text = e.value?.[0] || '';
+    console.log('인식 결과:', text);
+    setRecognizedText(text);
+
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
+    try {
+      setLoading(true);
+      setApiResponse('');
+
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({message: text}),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        console.warn('API 비정상 상태:', res.status, t);
+        setApiResponse(`(오류 ${res.status})`);
+        return;
+      }
+
+      const data = await res.json();
+      console.log('API 응답:', data);
+      const answer =
+        data?.data?.answer ?? data?.answer ?? data?.message ?? '(응답 없음)';
+      setApiResponse(answer);
+    } catch (error) {
+      console.error('API 호출 오류:', error);
+      setApiResponse('(오류 발생)');
+    } finally {
+      setLoading(false);
+      inFlightRef.current = false;
+    }
+  };
+
+  const onSpeechError = (event: SpeechErrorEvent) => {
+    console.error('[Speech Error]', event);
+    setIsListening(false);
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -131,9 +166,13 @@ export default function SpeechToTextScreen() {
           <RecognizedText>{recognizedText || '...'}</RecognizedText>
         </Bubble>
 
-        <TtsArea ttsText={apiResponse || '응답을 기다리는 중...'}>
-          {apiResponse || '응답을 기다리는 중...'}
-        </TtsArea>
+        {loading ? (
+          <NewsComponent url="https://news.mt.co.kr/mtview.php?no=2025082813314052084" />
+        ) : (
+          <TtsArea ttsText={apiResponse || '응답을 기다리는 중...'}>
+            {apiResponse || '응답을 기다리는 중...'}
+          </TtsArea>
+        )}
 
         <Footer>다시 말하고 싶으면 탭</Footer>
       </Container>
@@ -146,6 +185,7 @@ const Container = styled.Pressable`
   background-color: ${({theme}) => theme.color.white};
   align-items: center;
   justify-content: center;
+  padding: 16px;
 `;
 
 const Title = styled.Text`
