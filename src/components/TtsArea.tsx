@@ -18,7 +18,9 @@ export default function TtsArea({children, ttsText}: Props) {
 
   const speak = () => {
     Tts.stop();
-    Tts.speak(ttsText);
+    if (typeof children === 'string') {
+      Tts.speak(children);
+    }
   };
 
   return (
