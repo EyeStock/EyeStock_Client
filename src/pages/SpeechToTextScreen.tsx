@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {API_BASE_URL} from '@env';
+import TtsArea from '../components/TtsArea';
 
 export default function SpeechToTextScreen() {
   const [recognizedText, setRecognizedText] = useState('');
@@ -113,6 +114,8 @@ export default function SpeechToTextScreen() {
       setIsListening(false);
     };
 
+    startListening();
+
     return () => {
       Voice.destroy().then(Voice.removeAllListeners);
     };
@@ -128,11 +131,9 @@ export default function SpeechToTextScreen() {
           <RecognizedText>{recognizedText || '...'}</RecognizedText>
         </Bubble>
 
-        <Bubble>
-          <RecognizedText>
-            {apiResponse || '응답을 기다리는 중...'}
-          </RecognizedText>
-        </Bubble>
+        <TtsArea ttsText={apiResponse || '응답을 기다리는 중...'}>
+          {apiResponse || '응답을 기다리는 중...'}
+        </TtsArea>
 
         <Footer>다시 말하고 싶으면 탭</Footer>
       </Container>
