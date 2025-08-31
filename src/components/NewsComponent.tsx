@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {Linking, TouchableOpacity, View, Image} from 'react-native';
 import styled from 'styled-components/native';
 import {useLinkPreview} from '../hooks/useLinkPreview';
@@ -7,19 +7,50 @@ export default function LinkPreviewCard({
   url,
   compact = false,
 }: {
-  url: string;
+  url: string[];
   compact?: boolean;
 }) {
-  const {data, loading} = useLinkPreview(url);
+  const [idx, setIdx] = useState(0);
 
-  const open = () => Linking.openURL(url).catch(() => {});
-  const domain = (() => {
+  const urls = useMemo(
+    () =>
+      (url ?? []).filter(u => {
+        try {
+          new URL(u);
+          return true;
+        } catch {
+          return false;
+        }
+      }),
+    [url],
+  );
+
+  useEffect(() => {
+    if (urls.length <= 1) return;
+    setIdx(0);
+    const t = setInterval(() => {
+      setIdx(prev => (prev + 1) % urls.length);
+    }, 3000);
+    return () => clearInterval(t);
+  }, [urls]);
+
+  const currentUrl = urls[idx];
+  const {data, loading} = useLinkPreview(currentUrl);
+
+  const open = () => {
+    if (!currentUrl) return;
+    Linking.openURL(currentUrl).catch(() => {});
+  };
+
+  const domain = useMemo(() => {
+    if (!currentUrl) return '';
     try {
-      return new URL(url).hostname.replace(/^www\./, '');
+      return new URL(currentUrl).hostname.replace(/^www\./, '');
     } catch {
-      return url;
+      return currentUrl;
     }
-  })();
+  }, [currentUrl]);
+  if (!urls.length) return null;
 
   if (loading) {
     return (

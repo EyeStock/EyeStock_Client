@@ -22,6 +22,7 @@ export default function SpeechToTextScreen() {
   const [isListening, setIsListening] = useState(false);
   const [apiResponse, setApiResponse] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sources, setSources] = useState<string[]>([]);
 
   const inFlightRef = useRef(false);
 
@@ -120,6 +121,7 @@ export default function SpeechToTextScreen() {
     try {
       setLoading(true);
       setApiResponse('');
+      setSources([]);
 
       const res = await fetch(`${API_BASE_URL}/api/v1/chat/ask`, {
         method: 'POST',
@@ -139,9 +141,13 @@ export default function SpeechToTextScreen() {
 
       const data = await res.json();
       console.log('API 응답:', data);
+
       const answer =
         data?.data?.answer ?? data?.answer ?? data?.message ?? '(응답 없음)';
+      const srcs: string[] = data?.data?.sources ?? data?.sources ?? [];
+
       setApiResponse(answer);
+      setSources(Array.isArray(srcs) ? srcs : []);
     } catch (error) {
       console.error('API 호출 오류:', error);
       setApiResponse('(오류 발생)');
@@ -167,7 +173,7 @@ export default function SpeechToTextScreen() {
         </Bubble>
 
         {loading ? (
-          <NewsComponent url="https://news.mt.co.kr/mtview.php?no=2025082813314052084" />
+          <NewsComponent url={sources} />
         ) : (
           <TtsArea ttsText={apiResponse || '응답을 기다리는 중...'}>
             {apiResponse || '응답을 기다리는 중...'}
