@@ -6,9 +6,11 @@ import {useLinkPreview} from '../hooks/useLinkPreview';
 export default function LinkPreviewCard({
   url,
   compact = false,
+  question,
 }: {
   url: string[];
   compact?: boolean;
+  question?: string;
 }) {
   const [idx, setIdx] = useState(0);
 
@@ -50,31 +52,38 @@ export default function LinkPreviewCard({
       return currentUrl;
     }
   }, [currentUrl]);
+
   if (!urls.length) return null;
 
   if (loading) {
     return (
-      <Card as={View}>
-        <Row>
-          <Box w={compact ? 64 : 88} h={compact ? 64 : 88} br={8} sk />
-          <Info>
-            <SkLine w="70%" />
-            <SkLine w="95%" mt={6} />
-            <SkLine w="50%" mt={6} />
-          </Info>
-        </Row>
-      </Card>
+      <Wrap>
+        {question ? <Question numberOfLines={2}>“{question}”</Question> : null}
+        <Card as={View}>
+          <Row>
+            <Box w={compact ? 64 : 88} h={compact ? 64 : 88} br={8} sk />
+            <Info>
+              <SkLine w="70%" />
+              <SkLine w="95%" mt={6} />
+              <SkLine w="50%" mt={6} />
+            </Info>
+          </Row>
+        </Card>
+      </Wrap>
     );
   }
 
   if (!data) {
     return (
-      <Card as={TouchableOpacity} activeOpacity={0.85} onPress={open}>
-        <Pad>
-          <Title>{domain}</Title>
-          <Desc>미리보기를 불러오지 못했어요. 탭하여 열기</Desc>
-        </Pad>
-      </Card>
+      <Wrap>
+        {question ? <Question numberOfLines={2}>“{question}”</Question> : null}
+        <Card as={TouchableOpacity} activeOpacity={0.85} onPress={open}>
+          <Pad>
+            <Title>{domain}</Title>
+            <Desc>미리보기를 불러오지 못했어요. 탭하여 열기</Desc>
+          </Pad>
+        </Card>
+      </Wrap>
     );
   }
 
@@ -83,44 +92,62 @@ export default function LinkPreviewCard({
 
   if (compact) {
     return (
-      <Card as={TouchableOpacity} activeOpacity={0.85} onPress={open}>
-        <Row>
-          {hero ? (
-            <Thumb source={{uri: hero}} />
-          ) : (
-            <Box w={64} h={64} br={8} bg />
-          )}
-          <Info>
-            <Title numberOfLines={1}>{data.title ?? domain}</Title>
-            {data.description ? (
-              <Desc numberOfLines={2}>{data.description}</Desc>
-            ) : null}
-            <Site small numberOfLines={1}>
-              {site}
-            </Site>
-          </Info>
-        </Row>
-      </Card>
+      <Wrap>
+        {question ? <Question numberOfLines={2}>“{question}”</Question> : null}
+        <Card as={TouchableOpacity} activeOpacity={0.85} onPress={open}>
+          <Row>
+            {hero ? (
+              <Thumb source={{uri: hero}} />
+            ) : (
+              <Box w={64} h={64} br={8} bg />
+            )}
+            <Info>
+              <Title numberOfLines={1}>{data.title ?? domain}</Title>
+              {data.description ? (
+                <Desc numberOfLines={2}>{data.description}</Desc>
+              ) : null}
+              <Site small numberOfLines={1}>
+                {site}
+              </Site>
+            </Info>
+          </Row>
+        </Card>
+      </Wrap>
     );
   }
 
   return (
-    <Card as={TouchableOpacity} activeOpacity={0.85} onPress={open}>
-      {hero ? <Hero source={{uri: hero}} /> : <Box w="100%" h={170} bg />}
-      <Pad>
-        <Site numberOfLines={1}>{site}</Site>
-        <Title numberOfLines={2} style={{marginTop: 6}}>
-          {data.title ?? domain}
-        </Title>
-        {data.description ? (
-          <Desc numberOfLines={3} style={{marginTop: 6}}>
-            {data.description}
-          </Desc>
-        ) : null}
-      </Pad>
-    </Card>
+    <Wrap>
+      {question ? <Question numberOfLines={2}>“{question}”</Question> : null}
+      <Card as={TouchableOpacity} activeOpacity={0.85} onPress={open}>
+        {hero ? <Hero source={{uri: hero}} /> : <Box w="100%" h={170} bg />}
+        <Pad>
+          <Site numberOfLines={1}>{site}</Site>
+          <Title numberOfLines={2} style={{marginTop: 6}}>
+            {data.title ?? domain}
+          </Title>
+          {data.description ? (
+            <Desc numberOfLines={3} style={{marginTop: 6}}>
+              {data.description}
+            </Desc>
+          ) : null}
+        </Pad>
+      </Card>
+    </Wrap>
   );
 }
+
+const Wrap = styled.View`
+  width: 100%;
+  padding: 0 16px;
+`;
+
+const Question = styled.Text`
+  font-size: 14px;
+  color: #6b7280;
+  margin: 8px 0 12px;
+  text-align: center;
+`;
 
 const Card = styled.View`
   border: 1px solid #eceff3;

@@ -13,9 +13,9 @@ import {
   Alert,
   AppState,
 } from 'react-native';
-import {API_BASE_URL} from '@env';
 import TtsArea from '../components/TtsArea';
 import NewsComponent from '../components/NewsComponent';
+import api from '../api/instance';
 
 export default function SpeechToTextScreen() {
   const [recognizedText, setRecognizedText] = useState('');
@@ -86,11 +86,9 @@ export default function SpeechToTextScreen() {
 
   useEffect(() => {
     Voice.onSpeechStart = () => {
-      console.log('인식 시작');
       setIsListening(true);
     };
     Voice.onSpeechEnd = () => {
-      console.log('인식 종료');
       setIsListening(false);
     };
     Voice.onSpeechResults = onSpeechResults;
@@ -110,9 +108,30 @@ export default function SpeechToTextScreen() {
     };
   }, []);
 
+  const fetchNewsUrls = async (question: string) => {
+    try {
+      const res = await api.post('/api/v1/news', {
+        question,
+        days: 7,
+        max_links: 5,
+      });
+      const data = res.data;
+      const urls: string[] =
+        data?.data?.urls ??
+        data?.data?.links ??
+        data?.urls ??
+        data?.links ??
+        [];
+      return Array.isArray(urls) ? urls : [];
+    } catch (e: any) {
+      const status = e?.response?.status;
+      console.warn('뉴스 API 오류:', status ?? e?.message);
+      return [];
+    }
+  };
+
   const onSpeechResults = async (e: SpeechResultsEvent) => {
     const text = e.value?.[0] || '';
-    console.log('인식 결과:', text);
     setRecognizedText(text);
 
     if (inFlightRef.current) return;
@@ -122,35 +141,28 @@ export default function SpeechToTextScreen() {
       setLoading(true);
       setApiResponse('');
       setSources([]);
+      const [chatRes, newsUrls] = await Promise.all([
+        (async () => {
+          try {
+            const res = await api.post('/api/v1/chat/ask', {message: text});
+            const data = res.data;
+            const answer =
+              data?.data?.answer ??
+              data?.answer ??
+              data?.message ??
+              '(응답 없음)';
+            return {answer};
+          } catch (e: any) {
+            const status = e?.response?.status;
+            console.warn('ASK API 오류:', status ?? e?.message);
+            return {answer: status ? `(오류 ${status})` : '(오류 발생)'};
+          }
+        })(),
+        fetchNewsUrls(text),
+      ]);
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/chat/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({message: text}),
-      });
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => '');
-        console.warn('API 비정상 상태:', res.status, t);
-        setApiResponse(`(오류 ${res.status})`);
-        return;
-      }
-
-      const data = await res.json();
-      console.log('API 응답:', data);
-
-      const answer =
-        data?.data?.answer ?? data?.answer ?? data?.message ?? '(응답 없음)';
-      const srcs: string[] = data?.data?.sources ?? data?.sources ?? [];
-
-      setApiResponse(answer);
-      setSources(Array.isArray(srcs) ? srcs : []);
-    } catch (error) {
-      console.error('API 호출 오류:', error);
-      setApiResponse('(오류 발생)');
+      setApiResponse(chatRes.answer);
+      setSources(newsUrls);
     } finally {
       setLoading(false);
       inFlightRef.current = false;
@@ -172,8 +184,8 @@ export default function SpeechToTextScreen() {
           <RecognizedText>{recognizedText || '...'}</RecognizedText>
         </Bubble>
 
-        {loading ? (
-          <NewsComponent url={sources} />
+        {sources.length > 0 ? (
+          <NewsComponent url={sources} question={recognizedText} />
         ) : (
           <TtsArea ttsText={apiResponse || '응답을 기다리는 중...'}>
             {apiResponse || '응답을 기다리는 중...'}

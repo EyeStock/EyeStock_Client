@@ -1,9 +1,10 @@
 import axios from 'axios';
+import {API_BASE_URL} from '@env';
 
-const API_BASE_URL = 'http://15.165.68.253:8080/api/v1';
+const API_URL = `${API_BASE_URL}/api/v1`;
 
 export const biometricSignup = async (deviceId: string, publicKey: string) => {
-  const url = `${API_BASE_URL}/auth/biometric-signup`;
+  const url = `${API_URL}/auth/biometric-signup`;
   const body = {deviceId, publicKey};
   console.log('[biometricSignup] 요청:', {url, body});
 
@@ -21,7 +22,7 @@ export const biometricSignup = async (deviceId: string, publicKey: string) => {
 };
 
 export const biometricLoginStart = async (deviceId: string) => {
-  const url = `${API_BASE_URL}/auth/biometric-login/start`;
+  const url = `${API_URL}/auth/biometric-login/start`;
   const body = {deviceId};
   console.log('[biometricLoginStart] 요청:', {url, body});
 
