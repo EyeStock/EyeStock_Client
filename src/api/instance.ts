@@ -9,7 +9,33 @@ const instance = axios.create({
   },
   timeout: 10000,
 });
+AsyncStorage.getItem('accessToken').then(t => {
+  console.log(
+    '[STORED accessToken]',
+    t ? `${t.slice(0, 16)}... len=${t.length}` : '(none)',
+  );
+});
+AsyncStorage.getItem('refreshToken').then(t => {
+  console.log(
+    '[STORED refreshToken]',
+    t ? `${t.slice(0, 16)}... len=${t.length}` : '(none)',
+  );
+});
+instance.interceptors.request.use(async config => {
+  const token = await AsyncStorage.getItem('accessToken');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
 
+  const fullUrl = `${config.baseURL ?? ''}${config.url ?? ''}`;
+  console.log('[REQ]', config.method, fullUrl, {
+    auth: config.headers?.Authorization ? 'set' : 'none',
+    body:
+      typeof config.data === 'string'
+        ? config.data
+        : JSON.stringify(config.data),
+  });
+
+  return config;
+});
 instance.interceptors.request.use(
   async config => {
     const token = await AsyncStorage.getItem('accessToken');
