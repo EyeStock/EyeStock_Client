@@ -1,6 +1,6 @@
 import axios from 'axios';
 import {API_BASE_URL} from '@env';
-
+import {saveTokens} from './authStorage';
 const API_URL = `${API_BASE_URL}/api/v1`;
 
 export const biometricSignup = async (deviceId: string, publicKey: string) => {
@@ -44,13 +44,19 @@ export const biometricLoginVerify = async (
   challenge: string,
   signature: string,
 ) => {
-  const url = `${API_BASE_URL}/auth/biometric-login/verify`;
+  const url = `${API_URL}/auth/biometric-login/verify`;
   const body = {deviceId, challenge, signature};
   console.log('[biometricLoginVerify] 요청:', {url, body});
 
   try {
     const response = await axios.post(url, body);
-    console.log('[biometricLoginVerify] 응답:', response.data);
+    const {accessToken, refreshToken} = response?.data?.data ?? {};
+    if (accessToken && refreshToken) {
+      await saveTokens(accessToken, refreshToken);
+      console.log('[biometricLoginVerify] 토큰 저장 완료');
+    } else {
+      console.warn('[biometricLoginVerify] 토큰 없음(응답 확인 필요)');
+    }
     return response.data;
   } catch (error: any) {
     console.error(
