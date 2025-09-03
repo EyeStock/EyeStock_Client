@@ -110,7 +110,7 @@ export default function SpeechToTextScreen() {
 
   const fetchNewsUrls = async (question: string) => {
     try {
-      const res = await api.post('/api/v1/news', {
+      const res = await api.post('/news', {
         question,
         days: 7,
         max_links: 5,
@@ -144,7 +144,7 @@ export default function SpeechToTextScreen() {
       const [chatRes, newsUrls] = await Promise.all([
         (async () => {
           try {
-            const res = await api.post('/api/v1/chat/ask', {message: text});
+            const res = await api.post('/chat/ask', {message: text});
             const data = res.data;
             const answer =
               data?.data?.answer ??
